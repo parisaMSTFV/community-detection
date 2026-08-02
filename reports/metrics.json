@@ -1,0 +1,35 @@
+{
+  "artifact_fingerprint": "ef7a9d8885609374",
+  "data": {
+    "categories": 30,
+    "checks_passed": 9,
+    "interaction_rows": 6696,
+    "total_weight": 52588,
+    "users": 1200
+  },
+  "evaluation_boundary": "Planted synthetic communities only",
+  "graph": {
+    "detected_communities": 6,
+    "edges": 6696,
+    "nodes": 1230,
+    "weighted_modularity": 0.6496775523205884
+  },
+  "holdout": {
+    "agreement_lift": 4.867025313253621,
+    "evaluated_test_weight": 10483.0,
+    "null_mean_holdout_agreement": 0.16969474387102929,
+    "null_std_holdout_agreement": 0.06077810984933173,
+    "observed_holdout_agreement": 0.8259086139463894
+  },
+  "recovery": {
+    "category_ari": 1.0,
+    "overall_ari": 0.9042029942138897,
+    "user_ari": 0.9018877295078832
+  },
+  "stability": {
+    "mean_category_ari": 1.0,
+    "mean_pairwise_ari": 0.9778582721371084,
+    "mean_user_ari": 0.9772779469645505,
+    "minimum_pairwise_ari": 0.9474882424891439
+  }
+}
