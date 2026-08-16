@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 
@@ -17,6 +19,17 @@ class ValidationSummary:
     users: int
     categories: int
     total_weight: int
+    checks_passed: int
+
+
+@dataclass(frozen=True)
+class EdgeListValidationSummary:
+    """Validated shape of a user-category weighted edge list."""
+
+    edge_rows: int
+    users: int
+    categories: int
+    total_weight: float
     checks_passed: int
 
 
@@ -67,3 +80,54 @@ def validate_inputs(interactions: pd.DataFrame, truth: pd.DataFrame) -> Validati
         total_weight=int(interactions["interaction_weight"].sum()),
         checks_passed=9,
     )
+
+
+def load_weighted_edge_list(path: Path) -> tuple[pd.DataFrame, EdgeListValidationSummary]:
+    """Load and validate a minimal external bipartite edge-list contract."""
+    if not path.is_file():
+        raise DataValidationError(f"Edge-list file does not exist: {path}")
+    try:
+        edges = pd.read_csv(path)
+    except (pd.errors.EmptyDataError, pd.errors.ParserError) as error:
+        raise DataValidationError("Edge-list file must be a readable CSV with a header") from error
+    required = ["user_id", "category_id", "weight"]
+    missing = set(required).difference(edges.columns)
+    if missing:
+        raise DataValidationError(f"Missing edge-list columns: {sorted(missing)}")
+    if edges.empty:
+        raise DataValidationError("Edge list must not be empty")
+
+    canonical = edges[required].copy()
+    if canonical.isna().any().any():
+        raise DataValidationError("Edge-list fields must not contain nulls")
+    canonical["user_id"] = canonical["user_id"].astype("string").str.strip()
+    canonical["category_id"] = canonical["category_id"].astype("string").str.strip()
+    if canonical[["user_id", "category_id"]].eq("").any().any():
+        raise DataValidationError("Node identifiers must not be blank")
+    try:
+        canonical["weight"] = pd.to_numeric(canonical["weight"], errors="raise")
+    except (TypeError, ValueError) as error:
+        raise DataValidationError("Edge weights must be numeric") from error
+    if not np.isfinite(canonical["weight"].to_numpy(dtype=float)).all():
+        raise DataValidationError("Edge weights must be finite")
+    if (canonical["weight"] <= 0).any():
+        raise DataValidationError("Edge weights must be positive")
+    if canonical.duplicated(["user_id", "category_id"]).any():
+        raise DataValidationError("Each user-category edge must be unique")
+
+    users = set(canonical["user_id"])
+    categories = set(canonical["category_id"])
+    if users.intersection(categories):
+        raise DataValidationError("User and category identifiers must use disjoint namespaces")
+    if len(users) < 2 or len(categories) < 2:
+        raise DataValidationError("Edge list must contain at least two users and two categories")
+
+    canonical = canonical.sort_values(["user_id", "category_id"], ignore_index=True)
+    summary = EdgeListValidationSummary(
+        edge_rows=len(canonical),
+        users=len(users),
+        categories=len(categories),
+        total_weight=float(canonical["weight"].sum()),
+        checks_passed=8,
+    )
+    return canonical, summary
