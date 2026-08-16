@@ -8,3 +8,4 @@ __pycache__/
 .matplotlib/
 build/
 dist/
+artifacts/

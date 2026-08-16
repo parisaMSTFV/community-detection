@@ -5,14 +5,14 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "customer-category-community-detection"
 version = "1.0.0"
-description = "Evaluated community detection on a synthetic user-category bipartite graph."
+description = "Weighted user-category community detection with stability checks and an edge-list CLI."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
 authors = [{ name = "Parisa Mostafavi" }]
 dependencies = [
   "matplotlib>=3.9",
-  "networkx>=3.4",
+  "networkx==3.6.1",
   "numpy>=2.0",
   "pandas>=2.2",
   "scikit-learn>=1.5",

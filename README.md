@@ -2,17 +2,40 @@
 
 [![CI](https://github.com/parisaMSTFV/community-detection/actions/workflows/ci.yml/badge.svg)](https://github.com/parisaMSTFV/community-detection/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-3C78A8)
-![Data](https://img.shields.io/badge/data-fully%20synthetic-4A9D8F)
+[![Included data](https://img.shields.io/badge/included%20data-fully%20synthetic-4A9D8F)](DATA_PROVENANCE.md)
 
-A reproducible network-science case study that discovers mixed user and category communities in a weighted bipartite graph, evaluates recovery and stability, and translates the partition into business-readable affinity profiles.
+Which customer-category neighborhoods are strong enough to deserve analyst review? This project
+turns a weighted bipartite edge list into Louvain communities, stability diagnostics, and readable
+affinity profiles—without treating detected groups as proven campaign audiences.
 
-## Executive summary
+| Decision question | Executed synthetic evidence | Appropriate use |
+|---|---:|---|
+| Is planted structure recoverable? | User ARI `0.902`; category ARI `1.000` | Validate this implementation on controlled data |
+| Is the partition stable across seeds? | Mean ARI `0.978`; minimum `0.947` | Expose seed sensitivity before interpretation |
+| Do known held-out edges remain coherent? | `0.826` vs `0.170` shuffled; `4.87×` lift | Prioritize communities for analyst review |
 
-Customer segmentation usually starts from a flat feature table. This project asks a different question: which users and product categories form densely connected behavioral neighborhoods? Synthetic interaction counts become edges in a bipartite graph. Weighted Louvain detection receives only the training graph; planted labels remain in a separate evaluation table.
+These metrics describe 1,200 synthetic users and 30 synthetic categories. They do not establish
+performance on real behavior, adoption, campaign lift, or business impact.
 
-The executed pipeline found 6 communities across 1,200 synthetic users and 30 categories. User-label recovery reached adjusted Rand index (ARI) `0.902`, category ARI reached `1.000`, and weighted modularity was `0.650`. Across five Louvain seeds, mean pairwise ARI was `0.978` and the minimum was `0.947`. Held-out interaction agreement was `0.826`, compared with `0.170` after category-label permutation, a `4.87×` lift.
+![Community interaction profiles](reports/figures/community_profiles.png)
 
-These results describe the planted synthetic graph only. They show that the workflow can recover known structure under controlled ambiguity; they do not establish performance on real behavior or campaign impact.
+## Quick start with a weighted edge list
+
+```bash
+python -m pip install -e ".[dev]"
+community-detection analyze --edges examples/weighted_edges.csv --output-root artifacts/example
+```
+
+Inspect `artifacts/example/reports/community_assignments.csv`, `community_profiles.csv`, and
+`metrics.json`. The input CSV is not copied, but its user and category IDs are written to the
+assignment output; use only approved or public-safe identifiers.
+
+## What the workflow does
+
+Customer segmentation usually starts from a flat feature table. This project instead asks which
+users and product categories form densely connected behavioral neighborhoods. Weighted Louvain
+detection receives only graph edges; planted labels in the synthetic benchmark remain isolated in
+a separate evaluation table.
 
 ## Business problem
 
@@ -61,6 +84,21 @@ The generator creates:
 
 The planted label is never included in the interaction table passed to graph construction. It is joined only after detection. See [data provenance](DATA_PROVENANCE.md).
 
+## External edge-list contract
+
+The separate `analyze` command accepts a CSV with three required columns:
+
+| Column | Contract |
+|---|---|
+| `user_id` | Non-null, non-blank string |
+| `category_id` | Non-null, non-blank string in a namespace disjoint from user IDs |
+| `weight` | Finite, strictly positive number |
+
+Each user-category pair must be unique; aggregate repeated events before running the command.
+External mode reports assignments, community profiles, modularity, and seed stability. It does not
+calculate ARI, holdout agreement, or business outcomes because those inputs are not supplied. See
+the [full edge-list contract](docs/edge_list_contract.md).
+
 ## Methodology
 
 ### Weighted bipartite graph
@@ -107,8 +145,6 @@ High category recovery and lower user recovery are expected in this fixture: cat
 
 ## Visual results
 
-![Community interaction profiles](reports/figures/community_profiles.png)
-
 Each row is normalized by the training interaction weight of users assigned to that community. The dominant family supports interpretation, while the smaller off-diagonal shares show cross-community behavior.
 
 ![Category projection](reports/figures/category_projection.png)
@@ -129,6 +165,7 @@ community-detection/
 │   ├── synthetic_interactions.csv
 │   └── synthetic_ground_truth.csv
 ├── docs/interview_guide.md
+├── examples/weighted_edges.csv
 ├── reports/
 │   ├── figures/
 │   ├── metrics.json
@@ -142,7 +179,7 @@ community-detection/
 └── .github/workflows/ci.yml
 ```
 
-## Reproduce the project
+## Reproduce the synthetic benchmark
 
 Python 3.11 or 3.12 is required.
 
@@ -160,13 +197,17 @@ Windows PowerShell activation:
 .venv\Scripts\Activate.ps1
 ```
 
-`community-detection smoke` runs the same pipeline in a temporary directory without changing checked-in artifacts.
+`community-detection smoke` runs the synthetic pipeline in a temporary directory without changing
+checked-in artifacts. `make example` runs the external contract against the small example file and
+writes ignored outputs to `artifacts/example/`.
 
 ## Tests and quality checks
 
 The test suite checks deterministic generation, label isolation, event-weight reconciliation, input schema, bipartite edge types, node coverage, planted-label recovery, modularity, seed stability, holdout lift, normalized profiles, required outputs, and deterministic fingerprints.
 
-GitHub Actions runs Ruff, format checks, Pytest on Python 3.11 and 3.12, the sensitive-content scan, and the full smoke pipeline without credentials or external data.
+GitHub Actions runs Ruff, format checks, Pytest on Python 3.11 and 3.12, the sensitive-content scan,
+the full synthetic smoke pipeline, and the example external edge-list path. NetworkX is pinned to
+`3.6.1` because seeded Louvain results and the committed fingerprint are implementation-sensitive.
 
 ## Limitations
 

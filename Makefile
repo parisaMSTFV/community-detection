@@ -1,10 +1,13 @@
-.PHONY: install reproduce smoke test lint security check
+.PHONY: install reproduce example smoke test lint security check
 
 install:
 	python -m pip install -e ".[dev]"
 
 reproduce:
 	MPLCONFIGDIR=.matplotlib python -m community_detection.cli reproduce
+
+example:
+	MPLCONFIGDIR=.matplotlib python -m community_detection.cli analyze --edges examples/weighted_edges.csv --output-root artifacts/example
 
 smoke:
 	MPLCONFIGDIR=.matplotlib python -m community_detection.cli smoke

@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import asdict
+from importlib.metadata import version
 from pathlib import Path
 from typing import Any
 
@@ -17,15 +18,19 @@ from community_detection.evaluation import (
     modularity_score,
     recovery_metrics,
 )
-from community_detection.graph import build_bipartite_graph, detect_communities
-from community_detection.profiles import build_community_profiles
+from community_detection.graph import (
+    build_bipartite_graph,
+    build_edge_list_graph,
+    detect_communities,
+)
+from community_detection.profiles import build_community_profiles, build_edge_list_profiles
 from community_detection.reporting import (
     plot_category_projection,
     plot_community_sizes,
     plot_evaluation_summary,
     plot_family_profiles,
 )
-from community_detection.schema import validate_inputs
+from community_detection.schema import load_weighted_edge_list, validate_inputs
 from community_detection.synthetic import generate_interactions, split_interaction_weights
 
 
@@ -111,6 +116,60 @@ def run_pipeline(
     return metrics
 
 
+def run_edge_list_pipeline(
+    edges_path: Path,
+    output_root: Path,
+    config: AnalysisConfig | None = None,
+) -> dict[str, Any]:
+    """Detect communities in a validated external weighted edge list."""
+    config = config or load_config()
+    reports_dir = output_root / "reports"
+    figures_dir = reports_dir / "figures"
+    figures_dir.mkdir(parents=True, exist_ok=True)
+
+    edges, validation = load_weighted_edge_list(edges_path)
+    graph = build_edge_list_graph(edges)
+    assignments, communities = detect_communities(
+        graph,
+        seed=config.louvain_seeds[0],
+        resolution=config.louvain_resolution,
+    )
+    stability_pairs, stability = evaluate_seed_stability(
+        graph,
+        seeds=config.louvain_seeds,
+        resolution=config.louvain_resolution,
+    )
+    profiles = build_edge_list_profiles(edges, assignments)
+    fingerprint = _fingerprint([edges, assignments, stability_pairs, profiles])
+
+    assignments.to_csv(reports_dir / "community_assignments.csv", index=False)
+    profiles.to_csv(reports_dir / "community_profiles.csv", index=False)
+    stability_pairs.to_csv(reports_dir / "stability_pairs.csv", index=False)
+    plot_community_sizes(profiles, figures_dir / "community_sizes.png")
+
+    metrics: dict[str, Any] = {
+        "mode": "weighted_bipartite_edge_list",
+        "data": asdict(validation),
+        "graph": {
+            "nodes": graph.number_of_nodes(),
+            "edges": graph.number_of_edges(),
+            "detected_communities": len(communities),
+            "weighted_modularity": modularity_score(graph, communities),
+        },
+        "stability": stability,
+        "artifact_fingerprint": fingerprint,
+        "dependency_versions": {"networkx": version("networkx")},
+        "evaluation_boundary": (
+            "No ground truth, holdout interactions, or business outcome was supplied."
+        ),
+    }
+    (reports_dir / "metrics.json").write_text(
+        json.dumps(metrics, indent=2, sort_keys=True), encoding="utf-8"
+    )
+    _write_edge_list_summary(metrics, reports_dir / "run_summary.md")
+    return metrics
+
+
 def _write_summary(metrics: dict[str, Any], output_path: Path) -> None:
     recovery = metrics["recovery"]
     stability = metrics["stability"]
@@ -125,5 +184,25 @@ def _write_summary(metrics: dict[str, Any], output_path: Path) -> None:
 - Artifact fingerprint: `{metrics["artifact_fingerprint"]}`
 
 These values describe the planted synthetic graph only and do not estimate production segmentation quality or campaign impact.
+"""
+    output_path.write_text(text, encoding="utf-8")
+
+
+def _write_edge_list_summary(metrics: dict[str, Any], output_path: Path) -> None:
+    graph = metrics["graph"]
+    stability = metrics["stability"]
+    text = f"""# Edge-list analysis summary
+
+- Nodes: {graph["nodes"]}
+- Edges: {graph["edges"]}
+- Detected communities: {graph["detected_communities"]}
+- Weighted modularity: {graph["weighted_modularity"]:.3f}
+- Mean pairwise seed stability: {stability["mean_pairwise_ari"]:.3f}
+- Minimum pairwise seed stability: {stability["minimum_pairwise_ari"]:.3f}
+- Artifact fingerprint: `{metrics["artifact_fingerprint"]}`
+- NetworkX: `{metrics["dependency_versions"]["networkx"]}`
+
+These are unsupervised graph diagnostics. Without ground truth, a temporal holdout, or an outcome,
+they do not establish segment validity, future behavior, adoption, or business impact.
 """
     output_path.write_text(text, encoding="utf-8")

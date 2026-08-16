@@ -30,7 +30,9 @@ jobs:
         run: python -m pytest
       - name: Sensitive-content check
         run: python scripts/check_sensitive.py
-      - name: Pipeline smoke test
+      - name: Pipeline smoke tests
         env:
           MPLCONFIGDIR: /tmp/matplotlib
-        run: python -m community_detection.cli smoke
+        run: |
+          python -m community_detection.cli smoke
+          python -m community_detection.cli analyze --edges examples/weighted_edges.csv --output-root /tmp/community-edge-list

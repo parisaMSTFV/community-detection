@@ -25,6 +25,24 @@ def build_bipartite_graph(interactions: pd.DataFrame) -> nx.Graph:
     return graph
 
 
+def build_edge_list_graph(edges: pd.DataFrame) -> nx.Graph:
+    """Build a weighted bipartite graph from the external edge-list contract."""
+    graph = nx.Graph()
+    for row in edges.itertuples(index=False):
+        graph.add_node(row.user_id, node_type="user", bipartite=0)
+        graph.add_node(
+            row.category_id,
+            node_type="category",
+            category_name=row.category_id,
+            category_family="Input edge list",
+            bipartite=1,
+        )
+        graph.add_edge(row.user_id, row.category_id, weight=float(row.weight))
+    if graph.number_of_nodes() == 0 or graph.number_of_edges() == 0:
+        raise ValueError("Graph must contain nodes and weighted edges")
+    return graph
+
+
 def detect_communities(
     graph: nx.Graph,
     seed: int,
