@@ -15,24 +15,37 @@ jobs:
       matrix:
         python-version: ["3.11", "3.12"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
           python-version: ${{ matrix.python-version }}
-          cache: pip
-      - name: Install
-        run: python -m pip install -e ".[dev]"
+          version: "0.12.10"
+          enable-cache: true
+      - name: Install locked dependencies
+        run: uv sync --locked --extra dev
       - name: Lint and format check
-        run: python -m ruff check . && python -m ruff format --check .
-      - name: Test
+        run: |
+          uv run --locked ruff check .
+          uv run --locked ruff format --check .
+      - name: Test with coverage gate
         env:
           MPLCONFIGDIR: /tmp/matplotlib
-        run: python -m pytest
+        run: uv run --locked pytest
       - name: Sensitive-content check
-        run: python scripts/check_sensitive.py
+        run: uv run --locked python scripts/check_sensitive.py
       - name: Pipeline smoke tests
         env:
           MPLCONFIGDIR: /tmp/matplotlib
         run: |
-          python -m community_detection.cli smoke
-          python -m community_detection.cli analyze --edges examples/weighted_edges.csv --output-root /tmp/community-edge-list
+          uv run --locked community-detection smoke
+          uv run --locked community-detection analyze --edges examples/weighted_edges.csv --output-root /tmp/community-edge-list --allow-raw-identifiers
+      - name: Build and smoke-test wheel without editable source
+        env:
+          MPLCONFIGDIR: /tmp/matplotlib-wheel
+        run: |
+          uv build --wheel
+          uv run --isolated --no-project --with dist/*.whl community-detection smoke
