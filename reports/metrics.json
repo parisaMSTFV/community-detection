@@ -1,35 +1,94 @@
 {
-  "artifact_fingerprint": "ef7a9d8885609374",
+  "artifact_fingerprint": "b9a714b7c50eeaa0",
+  "audit": {
+    "config_fingerprint": "c5ac6ad449ba2ecd",
+    "dependency_versions": {
+      "networkx": "3.6.1",
+      "numpy": "2.5.2",
+      "pandas": "3.0.5",
+      "scikit-learn": "1.9.0"
+    },
+    "edge_weighting": "log_tfidf",
+    "identifier_policy": "synthetic_public_ids",
+    "model_version": "1.1.0",
+    "schema_version": "2.0",
+    "selected_resolution": 1.2,
+    "snapshot_id": "snap_b65ab0cef6cd9077",
+    "source_fingerprint": "b65ab0cef6cd9077"
+  },
   "data": {
     "categories": 30,
-    "checks_passed": 9,
-    "interaction_rows": 6696,
-    "total_weight": 52588,
+    "checks_passed": 11,
+    "future_only_edges": 97,
+    "interaction_rows": 6572,
+    "total_weight": 52626,
     "users": 1200
   },
-  "evaluation_boundary": "Planted synthetic communities only",
+  "evaluation_boundary": "Controlled synthetic temporal windows; no production validity or business lift.",
   "graph": {
     "detected_communities": 6,
-    "edges": 6696,
+    "edges": 6475,
     "nodes": 1230,
-    "weighted_modularity": 0.6496775523205884
+    "weighted_modularity": 0.6097572131691643
   },
-  "holdout": {
-    "agreement_lift": 4.867025313253621,
-    "evaluated_test_weight": 10483.0,
-    "null_mean_holdout_agreement": 0.16969474387102929,
-    "null_std_holdout_agreement": 0.06077810984933173,
-    "observed_holdout_agreement": 0.8259086139463894
+  "hub_sensitivity": {
+    "top_category_weight_share": 0.043036750483559,
+    "user_ari_after_removal": 0.9893747506312757,
+    "users_compared": 1200
+  },
+  "model": {
+    "edge_weighting": "log_tfidf",
+    "resolution_selection_boundary": "Unsupervised stability, coverage, and modularity; planted labels are excluded.",
+    "selected_resolution": 1.2
+  },
+  "quality_gate": {
+    "connected_components": 1,
+    "eligible_user_coverage": 1.0,
+    "largest_component_node_share": 1.0,
+    "maximum_category_weight_share": 0.043036750483559,
+    "reasons": [],
+    "small_component_node_share": 0.0,
+    "status": "pass",
+    "thresholds": {
+      "max_category_weight_share": 0.35,
+      "max_small_component_node_share": 0.25,
+      "min_eligible_user_coverage": 0.8,
+      "min_hub_removal_user_ari": 0.7,
+      "min_temporal_user_ari": 0.6
+    }
   },
   "recovery": {
     "category_ari": 1.0,
-    "overall_ari": 0.9042029942138897,
-    "user_ari": 0.9018877295078832
+    "overall_ari": 0.8286351635104807,
+    "user_ari": 0.8245035462133422
   },
-  "stability": {
+  "seed_stability": {
     "mean_category_ari": 1.0,
-    "mean_pairwise_ari": 0.9778582721371084,
-    "mean_user_ari": 0.9772779469645505,
-    "minimum_pairwise_ari": 0.9474882424891439
+    "mean_pairwise_ari": 0.9720736786964901,
+    "mean_user_ari": 0.9714026686921857,
+    "minimum_pairwise_ari": 0.9302556370696342,
+    "minimum_user_ari": 0.928581901374252
+  },
+  "temporal": {
+    "future_edge_agreement": {
+      "agreement_lift": 4.762665176254541,
+      "evaluated_future_weight": 13334.0,
+      "future_node_coverage_by_weight": 1.0,
+      "known_edge_agreement": 0.8115667399378458,
+      "null_mean_future_agreement": 0.16907229638518076,
+      "observed_future_agreement": 0.8052347382630869,
+      "unseen_edge_agreement": 0.2127659574468085,
+      "unseen_edge_weight_share": 0.010574471276436178
+    },
+    "partition_stability": {
+      "category_ari": 1.0,
+      "common_categories": 30,
+      "common_nodes": 1229,
+      "common_users": 1199,
+      "overall_ari": 0.7303908545553395,
+      "user_ari": 0.7242300444688234
+    },
+    "test_window_days": 30,
+    "train_window_days": 90
   }
 }

@@ -104,19 +104,49 @@ def generate_interactions(
     return interactions, truth
 
 
-def split_interaction_weights(
+def simulate_temporal_windows(
     interactions: pd.DataFrame,
-    holdout_fraction: float = 0.2,
+    train_window_days: int = 90,
+    test_window_days: int = 30,
     seed: int = 43,
 ) -> pd.DataFrame:
-    """Split event counts per observed edge while keeping at least one train event."""
-    if not 0 < holdout_fraction < 0.5:
-        raise ValueError("holdout_fraction must be between zero and 0.5")
+    """Simulate independent earlier and later event windows from latent edge intensity.
+
+    The original synthetic weight is treated as a relative 120-day intensity. Counts for
+    the two non-overlapping windows are sampled independently, so a later-period edge can
+    be genuinely unseen in training instead of being withheld from an already-known edge.
+    """
+    if train_window_days < 1 or test_window_days < 1:
+        raise ValueError("Temporal windows must contain at least one day")
     rng = np.random.default_rng(seed)
-    result = interactions.copy()
-    total = result["interaction_weight"].astype(int).to_numpy()
-    test = rng.binomial(total, holdout_fraction)
-    test = np.minimum(test, np.maximum(total - 1, 0))
-    result["train_weight"] = total - test
-    result["test_weight"] = test
-    return result
+    total_days = train_window_days + test_window_days
+    intensity = interactions["interaction_weight"].to_numpy(dtype=float)
+    train_rate = intensity * train_window_days / total_days
+    test_rate = intensity * test_window_days / total_days
+
+    result = interactions.drop(columns=["interaction_weight"]).copy()
+    result["train_weight"] = rng.poisson(train_rate)
+    result["test_weight"] = rng.poisson(test_rate)
+
+    # Preserve full training population coverage for a controlled benchmark.
+    for _, positions in result.groupby("user_id").groups.items():
+        if result.loc[positions, "train_weight"].sum() == 0:
+            best = max(positions, key=lambda position: train_rate[position])
+            result.loc[best, "train_weight"] = 1
+    for _, positions in result.groupby("category_id").groups.items():
+        if result.loc[positions, "train_weight"].sum() == 0:
+            best = max(positions, key=lambda position: train_rate[position])
+            result.loc[best, "train_weight"] = 1
+
+    result["interaction_weight"] = result["train_weight"] + result["test_weight"]
+    result = result[result["interaction_weight"] > 0].copy()
+    columns = [
+        "user_id",
+        "category_id",
+        "category_name",
+        "category_family",
+        "interaction_weight",
+        "train_weight",
+        "test_weight",
+    ]
+    return result[columns].sort_values(["user_id", "category_id"], ignore_index=True)

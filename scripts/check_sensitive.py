@@ -8,7 +8,18 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SELF = Path(__file__).resolve()
-TEXT_SUFFIXES = {".csv", ".ini", ".json", ".md", ".py", ".toml", ".txt", ".yaml", ".yml"}
+TEXT_SUFFIXES = {
+    ".csv",
+    ".ini",
+    ".json",
+    ".lock",
+    ".md",
+    ".py",
+    ".toml",
+    ".txt",
+    ".yaml",
+    ".yml",
+}
 PATTERNS = {
     "private key": re.compile("BEGIN " + "PRIVATE KEY"),
     "cloud access key": re.compile("AK" + "IA[0-9A-Z]{16}"),
@@ -26,7 +37,11 @@ PATTERNS = {
 def candidate_files() -> list[Path]:
     try:
         output = subprocess.run(
-            ["git", "ls-files"], cwd=ROOT, check=True, capture_output=True, text=True
+            ["git", "ls-files", "--cached", "--others", "--exclude-standard"],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
         ).stdout
         paths = [ROOT / line for line in output.splitlines()]
     except (FileNotFoundError, subprocess.CalledProcessError):

@@ -4,11 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "customer-category-community-detection"
-version = "1.0.0"
-description = "Weighted user-category community detection with stability checks and an edge-list CLI."
+version = "1.1.0"
+description = "Guarded user-category community detection with temporal and stability checks."
 readme = "README.md"
 requires-python = ">=3.11"
-license = { file = "LICENSE" }
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Parisa Mostafavi" }]
 dependencies = [
   "matplotlib>=3.9",
@@ -19,7 +20,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.3", "ruff>=0.9"]
+dev = ["build>=1.2", "pytest>=8.3", "pytest-cov>=6.0", "ruff>=0.9"]
 
 [project.scripts]
 community-detection = "community_detection.cli:main"
@@ -27,9 +28,12 @@ community-detection = "community_detection.cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+community_detection = ["resources/*.json"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q"
+addopts = "-q --cov=community_detection --cov-report=term-missing --cov-fail-under=90"
 
 [tool.ruff]
 line-length = 100

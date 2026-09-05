@@ -1,0 +1,16 @@
+{
+  "config_fingerprint": "c5ac6ad449ba2ecd",
+  "dependency_versions": {
+    "networkx": "3.6.1",
+    "numpy": "2.5.2",
+    "pandas": "3.0.5",
+    "scikit-learn": "1.9.0"
+  },
+  "edge_weighting": "log_tfidf",
+  "identifier_policy": "synthetic_public_ids",
+  "model_version": "1.1.0",
+  "schema_version": "2.0",
+  "selected_resolution": 1.2,
+  "snapshot_id": "snap_b65ab0cef6cd9077",
+  "source_fingerprint": "b65ab0cef6cd9077"
+}

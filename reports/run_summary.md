@@ -1,10 +1,13 @@
 # Reproduction summary
 
-- User ARI against planted labels: 0.902
-- Category ARI against planted labels: 1.000
-- Mean pairwise seed stability: 0.978
-- Held-out interaction agreement: 0.826
-- Shuffled-category null agreement: 0.170
-- Artifact fingerprint: `ef7a9d8885609374`
+- Quality gate: pass
+- Selected resolution: 1.20
+- User ARI against planted labels: 0.825
+- Minimum user seed stability: 0.929
+- Future-window agreement: 0.805
+- Future unseen-edge agreement: 0.213
+- Train-to-future user ARI: 0.724
+- Artifact fingerprint: `b9a714b7c50eeaa0`
 
-These values describe the planted synthetic graph only and do not estimate production segmentation quality or campaign impact.
+These values describe controlled synthetic temporal windows only. They do not estimate production
+segmentation quality, campaign adoption, incrementality, or business impact.

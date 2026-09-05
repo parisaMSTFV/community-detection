@@ -4,228 +4,228 @@
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-3C78A8)
 [![Included data](https://img.shields.io/badge/included%20data-fully%20synthetic-4A9D8F)](DATA_PROVENANCE.md)
 
-Which customer-category neighborhoods are strong enough to deserve analyst review? This project
-turns a weighted bipartite edge list into Louvain communities, stability diagnostics, and readable
-affinity profiles—without treating detected groups as proven campaign audiences.
+Which customer-category neighborhoods are structurally credible enough for analyst review? This
+project builds a weighted bipartite graph, controls category-hub dominance, tests several Louvain
+resolutions, and blocks weak partitions behind explicit graph and temporal guardrails.
 
-| Decision question | Executed synthetic evidence | Appropriate use |
+| Decision question | Executed synthetic evidence | Interpretation |
 |---|---:|---|
-| Is planted structure recoverable? | User ARI `0.902`; category ARI `1.000` | Validate this implementation on controlled data |
-| Is the partition stable across seeds? | Mean ARI `0.978`; minimum `0.947` | Expose seed sensitivity before interpretation |
-| Do known held-out edges remain coherent? | `0.826` vs `0.170` shuffled; `4.87×` lift | Prioritize communities for analyst review |
+| Did the technical review floor pass? | `pass`; eligible-user coverage `100%` | Candidate for analyst review, not automatic activation |
+| Is planted structure recoverable? | User ARI `0.825`; category ARI `1.000` | Implementation check on controlled data only |
+| Is the result stable across seeds? | Minimum user ARI `0.929` | No tested seed produced a materially different user partition |
+| Does it survive time and hub removal? | Temporal user ARI `0.724`; hub-removal ARI `0.989` | Passes the configured diagnostic floors |
+| How well do later edges agree? | Overall `0.805`; unseen edges `0.213` | Strong on recurring edges, weak on discovery of new affinities |
 
-These metrics describe 1,200 synthetic users and 30 synthetic categories. They do not establish
-performance on real behavior, adoption, campaign lift, or business impact.
+These values describe 1,200 fictional users and 30 fictional categories. They do not establish
+production validity, campaign adoption, incrementality, or business impact.
 
-![Community interaction profiles](reports/figures/community_profiles.png)
+![Guarded evaluation summary](reports/figures/evaluation_summary.png)
 
-## Quick start with a weighted edge list
+## Why this repository exists
 
-```bash
-python -m pip install -e ".[dev]"
-community-detection analyze --edges examples/weighted_edges.csv --output-root artifacts/example
-```
+Feature-based customer segmentation asks which customers look alike. This project asks a different
+question: which users and product categories form densely connected behavioral neighborhoods?
+A credible result can support audience and cross-category hypotheses, but a graph partition is not
+evidence that targeting will improve an outcome. The workflow therefore stops at analyst review.
 
-Inspect `artifacts/example/reports/community_assignments.csv`, `community_profiles.csv`, and
-`metrics.json`. The input CSV is not copied, but its user and category IDs are written to the
-assignment output; use only approved or public-safe identifiers.
-
-## What the workflow does
-
-Customer segmentation usually starts from a flat feature table. This project instead asks which
-users and product categories form densely connected behavioral neighborhoods. Weighted Louvain
-detection receives only graph edges; planted labels in the synthetic benchmark remain isolated in
-a separate evaluation table.
-
-## Business problem
-
-Flat customer clusters can hide the topology linking customers to category interests. A mixed user-category community can support:
-
-- audience discovery around category affinity rather than demographic assumptions;
-- category-led campaign planning and cross-category exploration;
-- identification of bridge categories that connect otherwise distinct interests;
-- a network feature layer for downstream recommendation or experimentation.
-
-The repository stops before activation. A detected community is a hypothesis about affinity, not proof that targeting it will create incremental value.
-
-## Analytical questions
-
-- Does weighted community detection recover the planted user and category structure without seeing evaluation labels?
-- Is the partition stable when Louvain's random seed changes?
-- Do held-out interaction events remain concentrated inside detected communities?
-- Does that concentration exceed a topology-destroying shuffled-category baseline?
-- Which category families and named categories characterize each detected group?
-
-## Workflow
+## Guarded workflow
 
 ```mermaid
 flowchart TD
-    A["Synthetic interactions"] --> B["Event-weight train and holdout split"]
-    B --> C["Weighted bipartite graph"]
-    C --> D["Louvain detection"]
-    D --> E["Recovery and modularity"]
-    D --> F["Seed stability"]
-    D --> G["Holdout vs shuffled null"]
-    E --> H["Community profiles"]
-    F --> H
-    G --> H
+    A["Earlier-window interactions"] --> B["Log-TF-IDF bipartite graph"]
+    B --> C["Resolution and seed search"]
+    C --> D["Component, coverage, and hub gates"]
+    D --> E["Later-window evaluation"]
+    E --> F["Versioned review artifacts"]
 ```
 
-## Synthetic data
+The detection path never receives planted labels or outcomes. Synthetic truth is joined only after
+the partition has been selected.
 
-The generator creates:
+## Synthetic benchmark
 
-- 1,200 fictional users with identifiers such as `USR-00001`;
-- 30 fictional categories with identifiers such as `CAT-001`;
-- six planted affinity families: Digital, Home, Style, Wellness, Family, and Outdoor;
-- 6,696 unique user-category edges and 52,588 total interaction events;
-- a 20% event-count holdout on each observed edge, while retaining at least one training event;
-- ambiguous users with a strong secondary affinity to make recovery non-trivial.
+The generator creates six fictional affinity families: Digital, Home, Style, Wellness, Family, and
+Outdoor. Aggregate edge intensity is converted into two independent, non-overlapping windows:
 
-The planted label is never included in the interaction table passed to graph construction. It is joined only after detection. See [data provenance](DATA_PROVENANCE.md).
+- 90-day training window used for graph construction;
+- 30-day later window used for edge agreement and partition drift;
+- 6,572 observed user-category pairs across both windows;
+- 97 later-window pairs that were not present in training;
+- 52,626 total synthetic events.
 
-## External edge-list contract
-
-The separate `analyze` command accepts a CSV with three required columns:
-
-| Column | Contract |
-|---|---|
-| `user_id` | Non-null, non-blank string |
-| `category_id` | Non-null, non-blank string in a namespace disjoint from user IDs |
-| `weight` | Finite, strictly positive number |
-
-Each user-category pair must be unique; aggregate repeated events before running the command.
-External mode reports assignments, community profiles, modularity, and seed stability. It does not
-calculate ARI, holdout agreement, or business outcomes because those inputs are not supplied. See
-the [full edge-list contract](docs/edge_list_contract.md).
+This is a temporal simulation, not a random holdout from already-known edges. The 97 new pairs make
+the weak unseen-edge result visible instead of allowing recurring behavior to dominate the claim.
 
 ## Methodology
 
-### Weighted bipartite graph
+### Identifier-safe bipartite graph
 
-User and category nodes form separate node types. An undirected edge represents observed interaction, and its training event count is the edge weight. No user-user or category-category edge is supplied to Louvain.
+User and category namespaces are separated inside NetworkX, so a user and category may both have an
+ID such as `001` without colliding. CSV identifiers are read as strings from the start, preserving
+leading zeroes and Unicode text. Blank values, control characters, identifiers longer than 128
+characters, and spreadsheet-formula prefixes are rejected.
 
-### Louvain community detection
+### Hub-resistant edge weights
 
-NetworkX Louvain detection runs at resolution `1.0`. Detected numeric labels are relabeled by descending user count for readable artifacts. This relabeling does not affect ARI or modularity.
+The default `log_tfidf` policy applies `log1p` to repeated interaction counts and downweights
+categories reached by many users. Raw weights remain available for audit metrics. The reported hub
+stress test removes the highest-weight category and recalculates the user partition.
 
-### Recovery metrics
+### Resolution policy
 
-Adjusted Rand index compares detected and planted partitions while remaining invariant to arbitrary numeric community labels. It is calculated separately for users, categories, and all nodes. Weighted modularity measures how much interaction weight is concentrated within the detected partition, but it is not treated as sufficient evidence on its own.
+Resolutions `0.8`, `1.0`, and `1.2` are compared without using planted labels. Selection combines:
 
-### Stability
+- minimum user-level stability across five Louvain seeds;
+- eligible-user coverage under minimum community sizes;
+- weighted modularity;
+- penalties for fragmented partitions.
 
-Detection is repeated with seeds `11`, `23`, `37`, `53`, and `71`. Every pair of partitions is compared with ARI. Reporting both the mean and minimum prevents a high average from hiding one unstable run.
+The selected resolution is `1.2`. Full candidate results are in
+[`reports/resolution_search.csv`](reports/resolution_search.csv).
 
-### Holdout and baseline
+### Guardrails
 
-The holdout contains event weight removed from observed user-category edges before detection. The score is the share of held-out weight whose user and category receive the same detected community. It tests consistency on future events for known edges, not unseen-edge prediction.
+The quality gate checks:
 
-For the null baseline, detected category labels are shuffled 100 times while user labels and community-size frequencies are retained. This breaks user-category topology without changing the category-label distribution.
+- small connected-component node share at or below `25%`;
+- at least `80%` of users in communities with five users and two categories;
+- no category carrying more than `35%` of raw graph weight;
+- user ARI of at least `0.70` after removing the largest category hub;
+- train-to-future user ARI of at least `0.60` when a later snapshot is supplied.
+
+Four disconnected user-category pairs can still produce high modularity and perfect seed stability,
+but this gate marks that graph `review_required` because its components and communities are too
+small. Passing these thresholds is a technical review floor, not a production guarantee.
+
+### Snapshot continuity
+
+Every assignment export contains a model version and source-derived snapshot ID. A later run can use
+`--reference-assignments` to align numeric community labels by maximum typed-node overlap. The run
+then writes `label_alignment.csv` and reports overlap and assignment-change rates.
 
 ## Executed results
 
 | Evaluation | Result |
 |---|---:|
-| Detected communities | 6 |
-| User ARI | 0.902 |
-| Category ARI | 1.000 |
-| Overall ARI | 0.904 |
-| Weighted modularity | 0.650 |
-| Mean pairwise seed ARI | 0.978 |
-| Minimum pairwise seed ARI | 0.947 |
-| Held-out interaction agreement | 0.826 |
-| Shuffled-category null mean | 0.170 |
-| Agreement lift | 4.87× |
-| Core artifact fingerprint | `ef7a9d8885609374` |
+| Quality gate | `pass` |
+| Selected resolution | `1.2` |
+| Detected communities | `6` |
+| User ARI | `0.825` |
+| Category ARI | `1.000` |
+| Weighted modularity | `0.610` |
+| Mean seed ARI | `0.972` |
+| Minimum user seed ARI | `0.929` |
+| Later-window agreement | `0.805` |
+| Recurring-edge agreement | `0.812` |
+| Unseen-edge agreement | `0.213` |
+| Unseen-edge weight share | `1.06%` |
+| Train-to-future user ARI | `0.724` |
+| Hub-removal user ARI | `0.989` |
+| Artifact fingerprint | `b9a714b7c50eeaa0` |
 
-![Evaluation summary](reports/figures/evaluation_summary.png)
-
-High category recovery and lower user recovery are expected in this fixture: categories have one planted family, while one quarter of users receive a deliberately strong secondary affinity.
-
-## Visual results
-
-Each row is normalized by the training interaction weight of users assigned to that community. The dominant family supports interpretation, while the smaller off-diagonal shares show cross-community behavior.
+![Community interaction profiles](reports/figures/community_profiles.png)
 
 ![Category projection](reports/figures/category_projection.png)
 
-This projection is a display artifact built from shared synthetic users. Detection itself runs on the original bipartite graph, not on this category-only projection.
+The category projection is a display artifact built from shared synthetic users. Detection runs on
+the original bipartite graph, not on this category-only projection.
 
-![Community sizes](reports/figures/community_sizes.png)
+## Analyze an external edge list
 
-`reports/community_profiles.csv` adds internal interaction share and the three leading category names for each community.
+The required CSV columns are:
 
-## Repository structure
+| Column | Contract |
+|---|---|
+| `user_id` | Non-null, non-blank string; Unicode and leading zeroes are preserved |
+| `category_id` | Non-null, non-blank string; typed separately from user IDs |
+| `weight` | Finite, strictly positive number |
 
-```text
-community-detection/
-├── configs/analysis.json
-├── data/
-│   ├── README.md
-│   ├── synthetic_interactions.csv
-│   └── synthetic_ground_truth.csv
-├── docs/interview_guide.md
-├── examples/weighted_edges.csv
-├── reports/
-│   ├── figures/
-│   ├── metrics.json
-│   ├── community_assignments.csv
-│   ├── community_profiles.csv
-│   ├── stability_pairs.csv
-│   └── holdout_null_distribution.csv
-├── scripts/check_sensitive.py
-├── src/community_detection/
-├── tests/
-└── .github/workflows/ci.yml
-```
+Each user-category pair must be unique. Aggregate repeated events before running the command.
 
-## Reproduce the synthetic benchmark
-
-Python 3.11 or 3.12 is required.
+External identifiers are pseudonymized by default with HMAC-SHA256. Supply a secret of at least 16
+characters through an environment variable; the secret is never written to reports:
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install -e ".[dev]"
+export COMMUNITY_DETECTION_ID_SALT="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+uv run community-detection analyze \
+  --edges path/to/current_edges.csv \
+  --output-root artifacts/current
+```
+
+For an approved public or fully synthetic file, raw identifiers require an explicit override:
+
+```bash
+uv run community-detection analyze \
+  --edges examples/weighted_edges.csv \
+  --output-root artifacts/example \
+  --allow-raw-identifiers
+```
+
+Optional later-snapshot and label-continuity checks:
+
+```bash
+uv run community-detection analyze \
+  --edges path/to/current_edges.csv \
+  --future-edges path/to/later_edges.csv \
+  --reference-assignments path/to/previous/community_assignments.csv \
+  --output-root artifacts/current \
+  --fail-on-review
+```
+
+Use the same secret across snapshots when aligning pseudonymized assignments. The input CSV is read
+but never copied into the output directory. See the
+[`edge-list contract`](docs/edge_list_contract.md) for the complete security and output contract.
+
+## Reproduce the benchmark
+
+Python 3.11 or 3.12 and [uv](https://docs.astral.sh/uv/) are required.
+
+```bash
+uv sync --locked --extra dev
 make reproduce
 make check
 ```
 
-Windows PowerShell activation:
+`uv.lock` fixes the full dependency graph. GitHub Actions repeats lint, formatting, the 90% coverage
+gate, sensitive-content scanning, both CLI smoke paths, wheel construction, and an isolated
+non-editable wheel run on Python 3.11 and 3.12.
 
-```powershell
-.venv\Scripts\Activate.ps1
+## Audit outputs
+
+```text
+reports/
+├── community_assignments.csv
+├── community_profiles.csv
+├── community_quality.csv
+├── component_diagnostics.csv
+├── model_manifest.json
+├── resolution_search.csv
+├── stability_pairs.csv
+├── temporal_null_distribution.csv
+├── metrics.json
+├── run_summary.md
+└── figures/
 ```
 
-`community-detection smoke` runs the synthetic pipeline in a temporary directory without changing
-checked-in artifacts. `make example` runs the external contract against the small example file and
-writes ignored outputs to `artifacts/example/`.
-
-## Tests and quality checks
-
-The test suite checks deterministic generation, label isolation, event-weight reconciliation, input schema, bipartite edge types, node coverage, planted-label recovery, modularity, seed stability, holdout lift, normalized profiles, required outputs, and deterministic fingerprints.
-
-GitHub Actions runs Ruff, format checks, Pytest on Python 3.11 and 3.12, the sensitive-content scan,
-the full synthetic smoke pipeline, and the example external edge-list path. NetworkX is pinned to
-`3.6.1` because seeded Louvain results and the committed fingerprint are implementation-sensitive.
+`model_manifest.json` records the model and schema versions, selected resolution, weighting policy,
+dependency versions, source fingerprint, config fingerprint, identifier policy, and snapshot ID.
 
 ## Limitations
 
 - The graph has planted family structure and is easier to interpret than real multi-intent behavior.
-- Category ARI of 1.000 is specific to this synthetic design and should not be expected in production.
-- The event-count holdout tests known edges and is not a link-prediction evaluation.
-- Louvain can have a resolution limit and may merge small but meaningful groups.
-- Modularity can reward partitions that are statistically convenient but not actionable.
-- The analysis uses one behavior type and one static period; it does not measure temporal drift.
+- Category ARI of `1.000` is specific to this fixture and should not be expected in production.
+- The later window evaluates observed future interactions; it is not a calibrated link-prediction model.
+- Unseen-edge agreement is only `0.213`, so this version should not be used to claim discovery of new affinities.
+- Resolution selection is an unsupervised diagnostic policy and does not optimize a business outcome.
+- Real deployments still need approved cohort definitions, late-arriving-data rules, retention periods, access controls, and outcome validation.
 - No uplift test, campaign outcome, or business-value estimate is included.
-
-## Potential next steps
-
-A production-oriented extension would compare behavior layers, use time-based snapshots, evaluate unseen-edge prediction, monitor partition drift, and test whether community-based targeting adds incremental value over existing audience rules. Any such extension would require an approved public-safe dataset and separate validation.
 
 ## Portfolio distinction
 
-This repository demonstrates graph modeling and network validation. A customer segmentation project based on engineered customer features answers a different question and should be evaluated with clustering quality, stability, and actionability metrics rather than network modularity.
+This repository demonstrates graph modeling, guarded community detection, temporal validation, and
+safe operational outputs. A feature-based customer segmentation project answers a different
+question and should be judged with clustering quality, stability, and actionability metrics rather
+than graph modularity.
 
 ## Author
 

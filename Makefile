@@ -1,24 +1,25 @@
 .PHONY: install reproduce example smoke test lint security check
 
 install:
-	python -m pip install -e ".[dev]"
+	uv sync --locked --extra dev
 
 reproduce:
-	MPLCONFIGDIR=.matplotlib python -m community_detection.cli reproduce
+	MPLCONFIGDIR=.matplotlib uv run --locked community-detection reproduce
 
 example:
-	MPLCONFIGDIR=.matplotlib python -m community_detection.cli analyze --edges examples/weighted_edges.csv --output-root artifacts/example
+	MPLCONFIGDIR=.matplotlib uv run --locked community-detection analyze --edges examples/weighted_edges.csv --output-root artifacts/example --allow-raw-identifiers
 
 smoke:
-	MPLCONFIGDIR=.matplotlib python -m community_detection.cli smoke
+	MPLCONFIGDIR=.matplotlib uv run --locked community-detection smoke
 
 test:
-	MPLCONFIGDIR=.matplotlib python -m pytest
+	MPLCONFIGDIR=.matplotlib uv run --locked pytest
 
 lint:
-	python -m ruff check .
+	uv run --locked ruff check .
+	uv run --locked ruff format --check .
 
 security:
-	python scripts/check_sensitive.py
+	uv run --locked python scripts/check_sensitive.py
 
 check: lint test security

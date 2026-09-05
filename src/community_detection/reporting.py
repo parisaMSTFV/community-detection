@@ -19,28 +19,28 @@ COLORS = {
 
 
 def plot_evaluation_summary(metrics: dict[str, float], output_path: Path) -> None:
-    """Plot recovery, stability, and holdout scores on a common zero-one scale."""
+    """Plot recovery, stability, and temporal scores on a common zero-one scale."""
     labels = [
         "User ARI",
         "Category ARI",
-        "Seed stability",
-        "Holdout agreement",
-        "Shuffled null",
+        "Min. seed stability",
+        "Future agreement",
+        "Temporal stability",
     ]
     values = [
         metrics["user_ari"],
         metrics["category_ari"],
-        metrics["mean_pairwise_ari"],
-        metrics["observed_holdout_agreement"],
-        metrics["null_mean_holdout_agreement"],
+        metrics["minimum_user_ari"],
+        metrics["observed_future_agreement"],
+        metrics["temporal_user_ari"],
     ]
-    colors = [COLORS["teal"]] * 4 + [COLORS["gray"]]
+    colors = [COLORS["teal"]] * 5
     fig, axis = plt.subplots(figsize=(10, 5.5), constrained_layout=True)
     fig.patch.set_facecolor(COLORS["ivory"])
     bars = axis.bar(labels, values, color=colors, width=0.68)
     axis.set_ylim(0, 1.08)
     axis.set_ylabel("Score")
-    axis.set_title("Synthetic community evaluation", loc="left", weight="bold")
+    axis.set_title("Guarded synthetic community evaluation", loc="left", weight="bold")
     axis.grid(axis="y", alpha=0.2)
     axis.spines[["top", "right"]].set_visible(False)
     axis.tick_params(axis="x", rotation=18)
